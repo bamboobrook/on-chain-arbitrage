@@ -1,0 +1,31 @@
+{
+  "name": "@oal/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./api": "./src/api.ts",
+    "./contracts": "./src/contracts.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@oal/config": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "peerDependencies": {
+    "viem": "^2.21.0"
+  },
+  "peerDependenciesMeta": {
+    "viem": { "optional": true }
+  }
+}
