@@ -143,3 +143,26 @@ The only remaining direction is MEV-Share private orderflow backrun, which
 requires Flashbots whitelist access (not scannable via public RPC).
 
 This empirically confirms design §3 across all testable categories.
+
+### Finding 8: Prediction-market arbitrage (Polymarket, on Polygon) — competed away
+
+Research (DevGenius analysis of 17,218 conditions, Flashbots Collective paper,
+Yahoo Finance) indicates ~41% of Polymarket conditions HAD arbitrage at some
+point, and bots reportedly earn 8-15% monthly. Verified empirically:
+
+- Scanned 1000+ markets via Gamma API (static): 0 with YES+NO < $0.995
+- Checked 40 top-market order books (best_ask_yes + best_ask_no): 0 < $0.998
+- Real-time monitored 3 high-volume markets for 60s (1Hz midpoint sampling):
+  0 deviations > 0.5% from sum=1.0
+- Multi-outcome events API returned 10MB+ payloads (connection issues); spot
+  checks of election markets also showed sum(YES) ≈ 1.0
+
+**Conclusion**: Polymarket arbitrage IS real but is captured by specialized
+low-latency bots within seconds. Static/REST scanning cannot catch the
+transient windows. Profitable capture requires: (a) WebSocket real-time
+feed, (b) co-located Polygon node, (c) pre-funded positions on both outcomes,
+(d) sub-second execution. The 8-15% monthly returns are achievable only with
+this infrastructure — not via periodic REST polling.
+
+This is a genuinely promising direction IF infra is built, but cannot be
+verified profitable via the public REST snapshots available to this scan.
