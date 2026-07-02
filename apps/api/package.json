@@ -1,0 +1,28 @@
+{
+  "name": "@oal/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -b",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@oal/config": "workspace:*",
+    "@oal/sdk": "workspace:*",
+    "@oal/strategy-models": "workspace:*",
+    "fastify": "^5.2.0",
+    "@fastify/cors": "^10.0.1",
+    "pg": "^8.13.1",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2"
+  }
+}
