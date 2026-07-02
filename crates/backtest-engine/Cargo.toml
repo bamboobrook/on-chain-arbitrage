@@ -25,3 +25,11 @@ async-trait = "0.1"
 [[bin]]
 name = "oal-backtest"
 path = "src/bin/oal_backtest.rs"
+
+[[bin]]
+name = "triangle-scan"
+path = "src/bin/triangle_scan.rs"
+
+[[bin]]
+name = "two-pool-scan"
+path = "src/bin/two_pool_scan.rs"
