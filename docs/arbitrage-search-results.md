@@ -105,3 +105,41 @@ competed. Persistent 20%+ requires either (a) private orderflow / MEV-Share
 backrun, (b) much longer-window scanning to catch rare volatility spikes, or
 (c) a category the on-chain Quoter cannot see (cross-chain, lending liquidation).
 These remain as documented next steps.
+
+### Finding 6: Lending liquidation (Aave V3) — sparse, crisis-dependent
+
+- Aave V3 liquidation bonus: ~5% (WETH 10500 bps). This is a real, large edge.
+- BUT: scanned Polygon (200 blocks, ~7min) and Ethereum (~half day) Aave V3
+  LiquidationCall events: **0 liquidations in both windows** (calm market).
+- Liquidations cluster only during volatility crises (e.g. May 2022 Luna, Nov
+  2022 FTX). In calm periods the annualized return is ~0%.
+- Even during crises, competition is extreme: specialized liquidation bots
+  (Arcadia, Instadapp Lite) clear positions within 1 block. Capturing them
+  requires sub-block latency + private mempool access.
+- **Not a stable 20%+ strategy**; it's a crisis-period spike strategy.
+
+### Finding 7: Cross-chain inventory (WETH across Polygon/Arbitrum/Optimism)
+
+- Measured WETH/USDC price on Uniswap V3 (0.05%) on 3 chains simultaneously.
+- Cross-chain spread: **12.08 bps** (max-min).
+- Round-trip bridge cost (Across/Hop): ~20 bps.
+- **Net edge: -8 bps** (negative). Cross-chain arb bots keep WETH prices
+  within bridge-cost across L2s. Not actionable.
+
+## FINAL VERDICT (all public-RPC-reachable directions exhausted)
+
+| Direction | Edge | Verdict |
+|---|---|---|
+| UniV3 two-pool cross-fee (small liq) | up to 78 bps | capacity <$0.50, gas-negative |
+| UniV3 two-pool cross-fee (large liq) | ~2.5 bps | below fee threshold |
+| UniV3 triangle | <0 | structurally negative |
+| Cross-DEX QuickSwap vs Uni | <0 | bots sync prices |
+| Swap-event backrun (single pool) | <fee | same-fee constraint |
+| Lending liquidation (Aave V3) | 5% bonus | 0 events in calm market; crisis-only |
+| Cross-chain inventory | 12 bps | <20 bps bridge cost |
+
+**No public-RPC-reachable strategy achieves gas-positive 20%+ annualized.**
+The only remaining direction is MEV-Share private orderflow backrun, which
+requires Flashbots whitelist access (not scannable via public RPC).
+
+This empirically confirms design §3 across all testable categories.
