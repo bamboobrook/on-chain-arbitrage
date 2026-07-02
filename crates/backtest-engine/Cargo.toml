@@ -11,9 +11,17 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-ruint = { workspace = true }
+ruint = { workspace = true, features = ["serde"] }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 rayon = { workspace = true }
 itertools = { workspace = true }
 chrono = { workspace = true }
 rand = { workspace = true }
+alloy = { workspace = true }
+tokio = { workspace = true }
+async-trait = "0.1"
+
+[[bin]]
+name = "oal-backtest"
+path = "src/bin/oal_backtest.rs"

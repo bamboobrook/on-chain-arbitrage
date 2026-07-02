@@ -40,12 +40,14 @@ ruint = "1"
 rust_decimal = { version = "1", features = ["serde"] }
 
 # Ethereum
-alloy = { version = "0.3", features = [
+alloy = { version = "0.3", default-features = false, features = [
     "node-bindings",
     "rpc-types",
     "providers",
     "signers",
     "signer-local",
+    "transport-http",
+    "reqwest-rustls-tls",
 ] }
 
 # EVM simulation

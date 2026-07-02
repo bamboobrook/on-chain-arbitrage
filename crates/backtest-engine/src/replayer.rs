@@ -1,23 +1,29 @@
 //! Block-level state replay.
 //!
-//! In production this pulls historical pool state from an archive RPC and the
-//! ClickHouse pool_states table. For unit-testable, deterministic behavior we
-//! expose a [`StateSource`] trait with two impls:
-//! - [`StaticStateSource`] — in-memory, great for tests.
-//! - [`RpcStateSource`] — fetches reserves/liquidity at a given block.
-//!
-//! The backtest driver walks blocks in order and hands each block's
-//! [`MarketContext`] + state to the model's discover/quote/simulate.
+//! Two state sources:
+//! - [`StaticStateSource`] — in-memory, for tests.
+//! - [`RpcStateSource`] — fetches Uniswap V3 pool `slot0` + `liquidity` at a
+//!   given block from an archive RPC via alloy. This is the real backtest
+//!   data path; the driver walks blocks and queries state at each.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use alloy::primitives::{address, Address as AlloyAddress, Bytes};
+use alloy::providers::{Provider, ProviderBuilder, RootProvider};
+use alloy::rpc::types::BlockId;
+use alloy::transports::http::{Client as HttpClient, Http};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strategy_core::dex::PoolLiveState;
 use strategy_core::types::{Address, MarketContext, PoolRef};
+use strategy_core::uint_ext::Uint;
+
+/// Concrete provider type returned by `on_http`.
+type HttpProvider = RootProvider<Http<HttpClient>>;
 
 /// Source of pool live state at a given block.
+#[async_trait::async_trait]
 pub trait StateSource: Send + Sync {
-    fn state_at(&self, chain_id: u32, pool: &Address, block: u64) -> Result<PoolLiveState>;
+    async fn state_at(&self, chain_id: u32, pool: &Address, block: u64) -> Result<PoolLiveState>;
 }
 
 /// In-memory state source keyed by (chain_id, pool, block).
@@ -35,13 +41,90 @@ impl StaticStateSource {
     }
 }
 
+#[async_trait::async_trait]
 impl StateSource for StaticStateSource {
-    fn state_at(&self, chain_id: u32, pool: &Address, block: u64) -> Result<PoolLiveState> {
+    async fn state_at(&self, chain_id: u32, pool: &Address, block: u64) -> Result<PoolLiveState> {
         self.states
             .get(&(chain_id, pool.clone(), block))
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("no state for chain {} pool {} block {}", chain_id, pool, block))
     }
+}
+
+/// RPC-backed state source. Reads Uniswap V3 `slot0()` and `liquidity()` at a
+/// given historical block. Requires an archive RPC endpoint.
+pub struct RpcStateSource {
+    provider: HttpProvider,
+}
+
+impl RpcStateSource {
+    pub fn new(rpc_url: &str) -> Self {
+        let provider = ProviderBuilder::new().on_http(rpc_url.parse().expect("valid rpc url"));
+        Self { provider }
+    }
+
+    /// Read a Uniswap V3 pool's slot0 + liquidity at `block`.
+    /// Returns (sqrtPriceX96, tick, liquidity).
+    pub async fn v3_state_at(&self, pool: &str, block: u64) -> Result<(Uint, i32, Uint)> {
+        let pool_addr: AlloyAddress = pool
+            .parse()
+            .map_err(|e| anyhow::anyhow!("bad pool address {}: {}", pool, e))?;
+        let block_id = BlockId::from(block);
+
+        // slot0() selector = 0x3850c7bd
+        let slot0_tx = alloy::rpc::types::TransactionRequest::default()
+            .to(pool_addr)
+            .input(Bytes::from(vec![0x38, 0x50, 0xc7, 0xbd]).into());
+        let slot0: Bytes = self
+            .provider
+            .call(&slot0_tx)
+            .block(block_id)
+            .await
+            .with_context(|| format!("slot0 call failed for {} @ {}", pool, block))?;
+        let bytes = slot0.as_ref();
+        if bytes.len() < 64 {
+            anyhow::bail!("slot0 returned too short: {} bytes", bytes.len());
+        }
+        let sqrt_p = Uint::from_be_slice(&bytes[12..32]);
+        // tick is int24, right-aligned in the second 32-byte word (bytes 32..64).
+        // The 3-byte value occupies bytes 61..64 (the low 3 bytes of word 2).
+        let tick = ((bytes[61] as i32) << 16) | ((bytes[62] as i32) << 8) | (bytes[63] as i32);
+        // sign-extend the 24-bit value (bit 23 is the sign bit)
+        let tick = if tick & 0x800000 != 0 { tick | !0xFF_FFFF } else { tick };
+
+        // liquidity() selector = 0x1a686502
+        let liq_tx = alloy::rpc::types::TransactionRequest::default()
+            .to(pool_addr)
+            .input(Bytes::from(vec![0x1a, 0x68, 0x65, 0x02]).into());
+        let liq: Bytes = self
+            .provider
+            .call(&liq_tx)
+            .block(block_id)
+            .await
+            .context("liquidity call failed")?;
+        let lbytes = liq.as_ref();
+        let liquidity = if lbytes.len() >= 32 {
+            Uint::from_be_slice(&lbytes[16..32])
+        } else {
+            Uint::ZERO
+        };
+
+        Ok((sqrt_p, tick, liquidity))
+    }
+}
+
+#[async_trait::async_trait]
+impl StateSource for RpcStateSource {
+    async fn state_at(&self, _chain_id: u32, pool: &Address, block: u64) -> Result<PoolLiveState> {
+        let (sqrt_p, tick, liq) = self.v3_state_at(pool, block).await?;
+        Ok(PoolLiveState::v3(sqrt_p, tick, liq))
+    }
+}
+
+// Silence unused import warning for the address! macro (kept for future pool constants).
+#[allow(dead_code)]
+fn _addr_anchor() -> AlloyAddress {
+    address!("0000000000000000000000000000000000000000")
 }
 
 /// A backtest's input configuration.
@@ -60,13 +143,10 @@ pub struct BacktestConfig {
 /// Cost-model parameters (see [`crate::cost_model`]).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CostModelParams {
-    /// Gas price stress multiplier (0.0 = none, 1.0 = +100%).
     #[serde(default)]
     pub gas_stress_pct: f64,
-    /// Bribe stress multiplier.
     #[serde(default)]
     pub bribe_stress_pct: f64,
-    /// Probability (0..1) a valid bundle gets included in a block.
     #[serde(default = "default_inclusion")]
     pub inclusion_rate: f64,
 }
@@ -86,7 +166,13 @@ impl Default for CostModelParams {
 }
 
 /// Build a per-block [`MarketContext`] for the given whitelisted pools.
-pub fn build_market_context(chain_id: u32, block: u64, ts: u64, assets: Vec<Address>, pools: Vec<PoolRef>) -> MarketContext {
+pub fn build_market_context(
+    chain_id: u32,
+    block: u64,
+    ts: u64,
+    assets: Vec<Address>,
+    pools: Vec<PoolRef>,
+) -> MarketContext {
     MarketContext {
         chain_id,
         block_number: block,
@@ -101,13 +187,13 @@ mod tests {
     use super::*;
     use strategy_core::uint_ext::Uint;
 
-    #[test]
-    fn static_source_round_trip() {
+    #[tokio::test]
+    async fn static_source_round_trip() {
         let mut s = StaticStateSource::new();
         let st = PoolLiveState::v2(Uint::from(100u64), Uint::from(100u64));
         s.insert(1, "0xp".into(), 10, st.clone());
-        let got = s.state_at(1, &"0xp".into(), 10).unwrap();
+        let got = s.state_at(1, &"0xp".into(), 10).await.unwrap();
         assert_eq!(got, st);
-        assert!(s.state_at(1, &"0xp".into(), 11).is_err());
+        assert!(s.state_at(1, &"0xp".into(), 11).await.is_err());
     }
 }
