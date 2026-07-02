@@ -1,0 +1,93 @@
+# Local development databases for On-Chain Arbitrage Lab.
+# Postgres (with TimescaleDB) + Redis + ClickHouse + optional monitoring.
+#
+#   docker compose -f infra/docker-compose.yml up -d
+#
+# Volumes are stored under ./data (gitignored).
+
+services:
+  postgres:
+    image: timescale/timescaledb:2.17.2-pg16
+    container_name: oal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-oal}
+      POSTGRES_USER: ${POSTGRES_USER:-oal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oal_dev_password}
+      TS_TUNE_MEMORY: 0.25
+      TS_TUNE_NUM_CPUS: 2
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./db/init/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-oal} -d ${POSTGRES_DB:-oal}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: oal-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: oal-clickhouse
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-oal}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-oal}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-oal_dev_password}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8123:8123"  # HTTP
+      - "9000:9000"  # native
+    volumes:
+      - ./data/clickhouse:/var/lib/clickhouse
+      - ./db/init/clickhouse:/docker-entrypoint-initdb.d:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    container_name: oal-prometheus
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./data/prometheus:/prometheus
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: oal-grafana
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - ./data/grafana:/var/lib/grafana
+    depends_on:
+      - prometheus
