@@ -1,0 +1,18 @@
+[package]
+name = "execution-router"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Transaction construction, nonce/gas management and private-relay multiplexing."
+
+[dependencies]
+strategy-core = { path = "../strategy-core" }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+ruint = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+parking_lot = { workspace = true }

@@ -1,0 +1,19 @@
+[package]
+name = "backtest-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Block-level replay, revm simulation and anti-overfit backtesting for arbitrage strategies."
+
+[dependencies]
+strategy-core = { path = "../strategy-core" }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+ruint = { workspace = true }
+tracing = { workspace = true }
+rayon = { workspace = true }
+itertools = { workspace = true }
+chrono = { workspace = true }
+rand = { workspace = true }
