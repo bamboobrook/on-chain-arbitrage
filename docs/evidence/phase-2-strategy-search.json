@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "phase": "Phase 2 — per-strategy search for >=20% sample-out candidates",
+  "plan": "docs/full-audit-and-glm-execution-plan-20260713.md §2",
+  "generatedAt": "2026-07-13T00:00:00Z",
+  "gitHead": "837f563",
+  "familiesEvaluated": 7,
+  "admitted": 0,
+  "honestStatement": "Per plan §0: strict gate may yield 0 admitted. 0 is the correct result given available data and RPC limits.",
+  "aaveV3V2Replay": {
+    "status": "research-lead-v2",
+    "eventsProcessed": 246,
+    "errors": 13,
+    "realizedApyRaw": 5369.5,
+    "realizedApyAt5pctCapture": 268.5,
+    "stressedApy": 2684.7,
+    "positiveMonthsPct": 100,
+    "maxSingleEventContributionPct": 41.0,
+    "blockers": ["max-event > 20% gate", "only 35 days data", "capture rate uncalibrated", "no walk-forward test"],
+    "artifact": "data/backtest-v2/aave-v3-liquidation-ethereum-v2.json",
+    "script": "scripts/aave-v3-replay-v2.mjs"
+  },
+  "blockedFamilies": {
+    "morpho-blue": "oracle decode failed (22/22); eth_getLogs 10-block free-tier limit; 0 raw logs in V1 data",
+    "maker-clipper": "RPC DNS timeout; 0 events; auction curve not built",
+    "curve-llamma": "no indexer/replayer built",
+    "euler-v2": "no EVC account index built",
+    "compound-iii": "0 events; multi-Comet enumeration needed; eth_getLogs limit",
+    "dex-atomic-arb": "rejected: 7 directions exhausted in prior session, 0 gas-positive"
+  },
+  "rootBlocker": "Alchemy free-tier eth_getLogs limited to 10-block range. Fetching historical liquidation events for Morpho/Compound/Maker requires archive node or PAYG upgrade. Aave V3 V2 succeeded because V1 had pre-captured 259 raw logs.",
+  "nextSteps": [
+    "Upgrade to Alchemy PAYG or self-hosted archive node to unblock Morpho/Compound/Maker event fetch",
+    "Extend Aave V3 V2 to 12 months of history (needs archive eth_getLogs for older LiquidationCall events)",
+    "Calibrate capture rate from observed liquidator competition data",
+    "Once >= 1 admitted: proceed to Phase 3 (scanner) → Phase 4 (executor) → Phase 5 (vault) → Phase 6 (deploy) → Phase 7 (launch)"
+  ],
+  "makeVerify": "ALL GREEN (TS 7pkgs + Rust 30 + Foundry 47 + JSON 64)"
+}
