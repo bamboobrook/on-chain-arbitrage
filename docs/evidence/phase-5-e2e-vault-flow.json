@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "artifactType": "phase-5-e2e-vault-flow",
+  "generatedAt": "2026-07-13T00:00:00Z",
+  "plan": "docs/full-audit-and-glm-execution-plan-20260713.md §5",
+  "network": "Anvil localhost:9545 chain 31337",
+  "deployedContracts": {
+    "asset": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+    "vault": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+    "executor": "0x0165878A594ca255338adfa4d48449f69242Eb8F",
+    "controller": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+    "risk": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    "accounting": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    "timelock": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+  },
+  "testUser": {
+    "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "description": "Anvil account #1 (fresh wallet)"
+  },
+  "e2eSteps": [
+    { "step": "1. mint test USDC", "status": "success", "txHash": "0x1f6e9bcdd6d66eaa9860edc810628040dcf55e853ba8cd09aed3f1bef6ce69d6" },
+    { "step": "2. approve vault", "status": "success", "onChain": true },
+    { "step": "3. deposit 1000 USDC", "status": "success", "sharesReceived": 1000000000, "onChain": true },
+    { "step": "4. redeem 50% shares", "status": "success", "sharesAfter": 500000000, "usdcAfter": 9999500000000, "onChain": true }
+  ],
+  "result": "PASS",
+  "verdict": "deposit → redeem 全链上 E2E 通过。所有交易在 Anvil 上 status=success。用户从新钱包开始，完成 approve→deposit→redeem 闭环。"
+}
