@@ -13,6 +13,9 @@ import {IDexAdapter} from "../interfaces/IDexAdapter.sol";
 /// @dev    This adapter holds no state between swaps; the StrategyExecutor sets
 ///         `msg.sender`-context correctly. Multi-hop is out of scope for MVP.
 interface IUniswapV3Pool {
+    function token0() external view returns (address);
+    function token1() external view returns (address);
+
     function swap(
         address recipient,
         bool zeroForOne,
@@ -25,6 +28,11 @@ interface IUniswapV3Pool {
 contract UniswapV3Adapter is IDexAdapter {
     using SafeERC20 for IERC20;
 
+    error InvalidPoolCallback(address caller, address expectedPool);
+    error InvalidSwapTokens(address tokenIn, address tokenOut);
+    error InvalidCallbackDeltas(int256 amount0Delta, int256 amount1Delta);
+    error InvalidCallbackAmount(uint256 actual, uint256 expected);
+
     /// @inheritdoc IDexAdapter
     function swap(
         address pool,
@@ -34,7 +42,17 @@ contract UniswapV3Adapter is IDexAdapter {
         uint256 minAmountOut,
         address recipient
     ) external override returns (uint256 amountOut) {
-        bool zeroForOne = tokenIn < tokenOut;
+        address token0 = IUniswapV3Pool(pool).token0();
+        address token1 = IUniswapV3Pool(pool).token1();
+        bool zeroForOne;
+        if (tokenIn == token0 && tokenOut == token1) {
+            zeroForOne = true;
+        } else if (tokenIn == token1 && tokenOut == token0) {
+            zeroForOne = false;
+        } else {
+            revert InvalidSwapTokens(tokenIn, tokenOut);
+        }
+
         // Take input now; the callback pulls it from this adapter.
         IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
 
@@ -45,7 +63,7 @@ contract UniswapV3Adapter is IDexAdapter {
             zeroForOne,
             int256(uint256(amountIn)),
             zeroForOne ? uint160(4295128740) : uint160(1461446703485210103287273052203988822378723970341),
-            abi.encode(tokenIn, amountIn)
+            abi.encode(pool, tokenIn, amountIn)
         );
         uint256 balAfter = IERC20(tokenOut).balanceOf(recipient);
         amountOut = balAfter - balBefore;
@@ -53,13 +71,22 @@ contract UniswapV3Adapter is IDexAdapter {
     }
 
     /// @notice V3 callback — the pool expects us to have paid `amountOwed`.
-    function uniswapV3SwapCallback(int256, int256 amount1, bytes calldata data) external {
-        (address tokenIn, uint256 amountOwed) = abi.decode(data, (address, uint256));
-        // Only pay if we owe (exact-input).
-        if (amountOwed > 0) {
-            IERC20(tokenIn).safeTransfer(msg.sender, amountOwed);
+    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
+        (address pool, address tokenIn, uint256 expectedAmountOwed) = abi.decode(data, (address, address, uint256));
+        if (msg.sender != pool) revert InvalidPoolCallback(msg.sender, pool);
+
+        uint256 amountOwed;
+        if (amount0Delta > 0 && amount1Delta <= 0) {
+            amountOwed = uint256(amount0Delta);
+        } else if (amount1Delta > 0 && amount0Delta <= 0) {
+            amountOwed = uint256(amount1Delta);
+        } else {
+            revert InvalidCallbackDeltas(amount0Delta, amount1Delta);
         }
-        // amount1 holds the owed amount for one direction; for the other we
-        // also settle via the decoded amountOwed. Trust the caller (pool).
+        if (amountOwed != expectedAmountOwed) {
+            revert InvalidCallbackAmount(amountOwed, expectedAmountOwed);
+        }
+
+        IERC20(tokenIn).safeTransfer(msg.sender, amountOwed);
     }
 }
