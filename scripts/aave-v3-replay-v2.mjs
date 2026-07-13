@@ -89,9 +89,17 @@ function netProfit(gross, debt, gasUsd, flashPct, protocolPct, dexPct, tipPct, f
 
 async function main() {
   console.log('=== Aave V3 Liquidation Replay V2 ===');
-  const state = JSON.parse(readFileSync('data/aave-liquidation-replay-state-ethereum.json', 'utf8'));
-  const logs = state.logs || [];
-  console.log(`loaded ${logs.length} LiquidationCall logs`);
+  // Prefer extended scan events (12 months) if available; fall back to V1 data.
+  let logs;
+  try {
+    const ext = JSON.parse(readFileSync('data/backtest-v2/aave-v3-extended-events-ethereum.json', 'utf8'));
+    logs = Array.isArray(ext) ? ext : (ext.logs || []);
+    console.log(`loaded ${logs.length} events from extended 12-month scan`);
+  } catch {
+    const state = JSON.parse(readFileSync('data/aave-liquidation-replay-state-ethereum.json', 'utf8'));
+    logs = state.logs || [];
+    console.log(`loaded ${logs.length} events from V1 replay-state (fallback)`);
+  }
 
   const events = [];
   for (const log of logs) {
