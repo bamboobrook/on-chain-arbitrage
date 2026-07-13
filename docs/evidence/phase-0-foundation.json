@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "phase": "Phase 0 — Foundation freeze + reproducible build",
+  "plan": "docs/full-audit-and-glm-execution-plan-20260713.md",
+  "generatedAt": "2026-07-13T00:00:00Z",
+  "gitHead": "43181cccc0f4b00ea3ecca107f68a60ae8d431e4",
+  "gitBranch": "phase-0-foundation",
+  "verification": {
+    "command": "make verify",
+    "result": "ALL GREEN",
+    "layers": [
+      { "name": "TypeScript typecheck", "packages": ["config","sdk","ui","strategy-models","api","workers","web"], "status": "pass", "count": 7 },
+      { "name": "Rust fmt", "status": "pass" },
+      { "name": "Rust clippy (-D warnings)", "status": "pass" },
+      { "name": "Rust test", "status": "pass", "tests": 30 },
+      { "name": "Foundry build", "status": "pass" },
+      { "name": "Foundry test", "status": "pass", "tests": 47, "suites": 8 },
+      { "name": "JSON artifact validate", "status": "pass", "files": 61 }
+    ]
+  },
+  "infrastructure": {
+    "dockerCompose": "infra/docker-compose.yml",
+    "services": [
+      { "name": "oal-postgres", "status": "healthy", "image": "timescale/timescaledb:2.17.2-pg16" },
+      { "name": "oal-redis", "status": "healthy", "image": "redis:7.4-alpine" },
+      { "name": "oal-clickhouse", "status": "healthy", "image": "clickhouse/clickhouse-server:24.8-alpine", "fix": "IPv4 listen_host override (listen.xml) — WSL2 IPv6 disabled" }
+    ]
+  },
+  "healthProbes": {
+    "liveEndpoint": "GET /health/live",
+    "readyEndpoint": "GET /health/ready",
+    "readyComponents": ["postgres", "redis", "clickhouse", "rpc"],
+    "rpcHealthEndpoint": "GET /health/rpc",
+    "verifiedAllGreen": true
+  },
+  "rpcMonitor": {
+    "module": "packages/sdk/src/rpcMonitor.ts",
+    "features": [
+      "multi-RPC per chain (primary + backup)",
+      "latency monitoring (configurable threshold, default 5000ms)",
+      "error rate tracking (default 10% threshold)",
+      "block height monitoring (eth_blockNumber)",
+      "automatic failover to backup when primary unhealthy",
+      "3 consecutive errors marks endpoint unhealthy"
+    ],
+    "chainsSupported": ["ethereum","arbitrum","base","polygon","optimism","bnb"]
+  },
+  "envTemplate": {
+    "file": ".env.example",
+    "changes": [
+      "added RPC_ETHEREUM_URL + 5 other chain URLs",
+      "added backup RPC URLs for failover",
+      "added EXECUTOR_PRIVATE_KEY (blank by default)",
+      "added LIVE_EXECUTION_ENABLED=false kill switch",
+      "added daily-loss caps + max consecutive failures",
+      "added private relay URLs (Flashbots/Beaverbuild/Titan)",
+      "removed dangerous ADMIN_API_KEY default (now 'GENERATE_WITH_openssl_rand_hex_32')",
+      "DB passwords now 'CHANGE_ME_LOCAL_ONLY'"
+    ]
+  },
+  "tasksCompleted": [
+    "0.1: branch created, 61 uncommitted files categorized into logical commits",
+    "0.2: make verify unified 4-layer check (TS+Rust+Foundry+JSON), pnpm PATH fixed",
+    "0.3: ClickHouse healthcheck fixed (IPv4 listen_host), all 3 DBs healthy",
+    "0.4: /health/live + /health/ready probes (DB/Redis/RPC/ClickHouse), all green",
+    "0.5: .env.example completed (Ethereum RPC, executor, relay, kill switch, safe defaults)",
+    "0.6: RPC health monitor with multi-RPC failover + /health/rpc endpoint"
+  ],
+  "acceptanceCriteria": {
+    "makeVerifyOneCommandGreen": "pass",
+    "clickHouseHealthy": "pass",
+    "rpcFailoverConfigured": "pass",
+    "healthProbesReady": "pass",
+    "envTemplateComplete": "pass"
+  },
+  "caveats": [
+    "Services (API/Web/workers) not yet managed by systemd/Docker Compose as long-running daemons — currently run via tsx/Makefile (Phase 3+ will containerize).",
+    "RPC failover tested at module level; live failover during scanner run is Phase 3 validation.",
+    "WSL DNS fix (§3 'repair WSL DNS') not separately patched — IPv4-only ClickHouse config resolves the observed symptom."
+  ],
+  "nextPhase": "Phase 1 — rebuild credible backtest data layer (event-block state oracle + cost model)"
+}
