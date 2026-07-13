@@ -15,4 +15,5 @@ export * from './types.js';
 export * from './api.js';
 export * from './contracts.js';
 export * from './rpcMonitor.js';
+export * from './scanner.js';
 export * from './backtest-v2/index.js';
