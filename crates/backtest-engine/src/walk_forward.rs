@@ -15,7 +15,11 @@ pub struct PnlPoint {
 
 /// Walk-forward split: train window, then test window.
 /// Returns (train, test) slices in chronological order.
-pub fn walk_forward_split(points: &[PnlPoint], train_blocks: u64, test_blocks: u64) -> (Vec<PnlPoint>, Vec<PnlPoint>) {
+pub fn walk_forward_split(
+    points: &[PnlPoint],
+    train_blocks: u64,
+    test_blocks: u64,
+) -> (Vec<PnlPoint>, Vec<PnlPoint>) {
     if points.is_empty() {
         return (vec![], vec![]);
     }

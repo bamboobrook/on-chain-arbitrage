@@ -46,8 +46,10 @@ impl TxLifecycle {
 
     /// True if the tx has been outstanding longer than `ttl` without confirmation.
     pub fn is_expired(&self, now: DateTime<Utc>, ttl: Duration) -> bool {
-        !matches!(self.state, TxState::Confirmed | TxState::Failed | TxState::Expired)
-            && (now - self.submitted_at).num_seconds() as u64 > ttl.as_secs()
+        !matches!(
+            self.state,
+            TxState::Confirmed | TxState::Failed | TxState::Expired
+        ) && (now - self.submitted_at).num_seconds() as u64 > ttl.as_secs()
     }
 }
 

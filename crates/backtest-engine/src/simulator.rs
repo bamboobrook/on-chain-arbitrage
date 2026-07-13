@@ -9,9 +9,7 @@
 
 use anyhow::Result;
 use strategy_core::dex::{quote_hop, PoolLiveState};
-use strategy_core::types::{
-    Address, BalanceDelta, CapitalSource, ExecutionPlan, SimulationResult,
-};
+use strategy_core::types::{Address, BalanceDelta, CapitalSource, ExecutionPlan, SimulationResult};
 
 /// A simulation backend.
 pub trait Simulator {
@@ -21,12 +19,17 @@ pub trait Simulator {
 /// Approximate simulator: chains DEX math quotes per hop. Good enough for
 /// fast ranking and graph validation; NOT a substitute for revm exactness.
 pub struct MathSimulator {
+    #[allow(clippy::type_complexity)]
     pub states: Box<dyn Fn(u32, &Address) -> Option<PoolLiveState> + Send + Sync>,
 }
 
 impl MathSimulator {
-    pub fn new(states: impl Fn(u32, &Address) -> Option<PoolLiveState> + Send + Sync + 'static) -> Self {
-        Self { states: Box::new(states) }
+    pub fn new(
+        states: impl Fn(u32, &Address) -> Option<PoolLiveState> + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            states: Box::new(states),
+        }
     }
 }
 
@@ -76,11 +79,7 @@ impl Simulator for MathSimulator {
             block_number: 0, // filled by caller
             gas_used: gas_total,
             balance_deltas: vec![BalanceDelta {
-                token: plan
-                    .route
-                    .entry_token()
-                    .cloned()
-                    .unwrap_or_default(),
+                token: plan.route.entry_token().cloned().unwrap_or_default(),
                 delta: net_profit,
                 positive: net_profit > strategy_core::uint_ext::Uint::ZERO,
             }],
@@ -91,7 +90,10 @@ impl Simulator for MathSimulator {
     }
 }
 
-fn premium(source: CapitalSource, principal: strategy_core::uint_ext::Uint) -> strategy_core::uint_ext::Uint {
+fn premium(
+    source: CapitalSource,
+    principal: strategy_core::uint_ext::Uint,
+) -> strategy_core::uint_ext::Uint {
     use strategy_core::uint_ext::Uint;
     match source {
         CapitalSource::FlashLoanAave => {
@@ -99,7 +101,9 @@ fn premium(source: CapitalSource, principal: strategy_core::uint_ext::Uint) -> s
             (principal * Uint::from(9u64)) / Uint::from(10_000u64) + Uint::from(1u64)
         }
         CapitalSource::FlashLoanBalancer => Uint::ZERO, // Balancer V2 flash loans are free
-        CapitalSource::FlashSwapUniswapV2 => (principal * Uint::from(30u64)) / Uint::from(10_000u64), // 0.3%
+        CapitalSource::FlashSwapUniswapV2 => {
+            (principal * Uint::from(30u64)) / Uint::from(10_000u64)
+        } // 0.3%
         CapitalSource::FlashSwapUniswapV3 => Uint::ZERO,
         CapitalSource::VaultCapital => Uint::ZERO,
     }
@@ -108,7 +112,7 @@ fn premium(source: CapitalSource, principal: strategy_core::uint_ext::Uint) -> s
 #[cfg(test)]
 mod tests {
     use super::*;
-    use strategy_core::types::{Capital, Hop, PoolKind, PoolRef, Route, Dex};
+    use strategy_core::types::{Capital, Dex, Hop, PoolKind, PoolRef, Route};
     use strategy_core::uint_ext::{Uint, UintExt};
 
     fn mk_plan() -> ExecutionPlan {
@@ -135,7 +139,11 @@ mod tests {
                         zero_for_one: true,
                     },
                     Hop {
-                        pool: PoolRef { token0: "0xB".into(), token1: "0xA".into(), ..pool },
+                        pool: PoolRef {
+                            token0: "0xB".into(),
+                            token1: "0xA".into(),
+                            ..pool
+                        },
                         token_in: "0xB".into(),
                         token_out: "0xA".into(),
                         zero_for_one: true,

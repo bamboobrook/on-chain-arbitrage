@@ -8,8 +8,8 @@
 //! side when live keys are present.
 
 use serde::{Deserialize, Serialize};
-use strategy_core::types::Hash;
 use std::time::Duration;
+use strategy_core::types::Hash;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bundle {
@@ -126,7 +126,12 @@ mod tests {
         let m = RelayMultiplexer {
             relays: vec![Box::new(DemoRelay)],
         };
-        let b = Bundle { chain_id: 1, txs: vec!["0x9".into()], target_block: 1, max_block: 2 };
+        let b = Bundle {
+            chain_id: 1,
+            txs: vec!["0x9".into()],
+            target_block: 1,
+            max_block: 2,
+        };
         assert!(m.submit(&b).accepted);
     }
 }

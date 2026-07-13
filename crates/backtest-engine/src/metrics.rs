@@ -6,7 +6,7 @@
 
 use crate::walk_forward::PnlPoint;
 use serde::{Deserialize, Serialize};
-use strategy_core::uint_ext::{Amount, Uint, UintExt};
+use strategy_core::uint_ext::{Amount, Uint};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BacktestMetrics {
@@ -45,7 +45,7 @@ pub struct DailyPnl {
 pub fn compute(
     points: &[PnlPoint],
     capital: Amount,
-    decimals: u8,
+    _decimals: u8,
     blocks_per_year: f64,
     window_blocks: u64,
     block_to_day: impl Fn(u64) -> String,
@@ -76,7 +76,10 @@ pub fn compute(
     let mut curve: Vec<EquityPoint> = Vec::with_capacity(points.len());
     for p in points {
         equity = equity.saturating_add(p.net_profit);
-        curve.push(EquityPoint { block: p.block, equity });
+        curve.push(EquityPoint {
+            block: p.block,
+            equity,
+        });
         let cur = amount_to_f64(capital) + amount_to_f64(equity);
         if cur > peak {
             peak = cur;
@@ -168,7 +171,10 @@ mod tests {
     #[test]
     fn metrics_basic() {
         let pts: Vec<PnlPoint> = (0..10)
-            .map(|i| PnlPoint { block: i, net_profit: Uint::from(1_000_000u64) })
+            .map(|i| PnlPoint {
+                block: i,
+                net_profit: Uint::from(1_000_000u64),
+            })
             .collect();
         let m = compute(
             &pts,

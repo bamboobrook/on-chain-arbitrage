@@ -112,7 +112,7 @@ impl TokenGraph {
 
         // Detect a closing edge back to `start` that yields a negative cycle.
         let mut cycles: Vec<Cycle> = Vec::new();
-        if let Some(edges) = self.adj.get(start) {
+        if let Some(_edges) = self.adj.get(start) {
             // For each token t reachable with dist[t], if there's an edge t->start
             // and dist[t] + w < -min_log_profit, we have a profitable cycle.
             for (token, d) in &dist {
@@ -147,11 +147,21 @@ impl TokenGraph {
         }
 
         // Dedup by hop signature and sort by descending log profit.
-        cycles.sort_by(|a, b| b.log_profit.partial_cmp(&a.log_profit).unwrap_or(std::cmp::Ordering::Equal));
+        cycles.sort_by(|a, b| {
+            b.log_profit
+                .partial_cmp(&a.log_profit)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         let mut seen: Vec<String> = Vec::new();
         let mut out: Vec<Cycle> = Vec::new();
         for c in cycles {
-            let sig = c.route.hops.iter().map(|h| h.pool.address.clone()).collect::<Vec<_>>().join(">");
+            let sig = c
+                .route
+                .hops
+                .iter()
+                .map(|h| h.pool.address.clone())
+                .collect::<Vec<_>>()
+                .join(">");
             if seen.contains(&sig) {
                 continue;
             }
@@ -194,7 +204,7 @@ impl TokenGraph {
 
         // Forward: [start, ..., end]; edges align so edge[i] connects node[i] -> node[i+1].
         let mut nodes: Vec<Address> = nodes_rev.into_iter().rev().collect();
-        let mut edges: Vec<PoolRef> = edges_rev.into_iter().rev().collect();
+        let edges: Vec<PoolRef> = edges_rev.into_iter().rev().collect();
 
         // Build hops for each forward edge.
         let mut hops: Vec<Hop> = Vec::new();
@@ -202,19 +212,36 @@ impl TokenGraph {
             let pool = &edges[i];
             let token_in = nodes[i].clone();
             let zero_for_one = pool.token0 == token_in;
-            let token_out = if zero_for_one { pool.token1.clone() } else { pool.token0.clone() };
-            hops.push(Hop { pool: pool.clone(), token_in, token_out, zero_for_one });
+            let token_out = if zero_for_one {
+                pool.token1.clone()
+            } else {
+                pool.token0.clone()
+            };
+            hops.push(Hop {
+                pool: pool.clone(),
+                token_in,
+                token_out,
+                zero_for_one,
+            });
         }
 
         // Closing hop: end -> start via closing_pool.
         let zero_for_one = closing_pool.token0 == *end;
         let token_in = end.clone();
-        let token_out = if zero_for_one { closing_pool.token1.clone() } else { closing_pool.token0.clone() };
+        let token_out = if zero_for_one {
+            closing_pool.token1.clone()
+        } else {
+            closing_pool.token0.clone()
+        };
         let _ = token_out.clone();
         hops.push(Hop {
             pool: closing_pool.clone(),
             token_in,
-            token_out: if zero_for_one { closing_pool.token1.clone() } else { closing_pool.token0.clone() },
+            token_out: if zero_for_one {
+                closing_pool.token1.clone()
+            } else {
+                closing_pool.token0.clone()
+            },
             zero_for_one,
         });
 

@@ -68,20 +68,24 @@ fn shl(x: Uint, pow: u32) -> Uint {
     let mut a = x;
     let mut p = pow;
     while p >= 64 {
-        a = a << 64;
+        a <<= 64;
         p -= 64;
     }
-    if p > 0 { a = a << p; }
+    if p > 0 {
+        a <<= p;
+    }
     a
 }
 fn shr(x: Uint, pow: u32) -> Uint {
     let mut a = x;
     let mut p = pow;
     while p >= 64 {
-        a = a >> 64;
+        a >>= 64;
         p -= 64;
     }
-    if p > 0 { a = a >> p; }
+    if p > 0 {
+        a >>= p;
+    }
     a
 }
 

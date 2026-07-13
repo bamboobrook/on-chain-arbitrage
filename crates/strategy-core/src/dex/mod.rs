@@ -29,18 +29,25 @@ pub struct HopQuote {
 /// the new tick + remaining liquidity cursor (consumed by the V3 stepper).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PoolStateAfter {
-    V2 { reserve_in: Amount, reserve_out: Amount },
-    V3 { sqrt_price_x96: Amount, tick: i32, liquidity: Amount },
-    Stable { balances_scaled: [Amount; 2] },
-    Weighted { balances_scaled: [Amount; 2] },
+    V2 {
+        reserve_in: Amount,
+        reserve_out: Amount,
+    },
+    V3 {
+        sqrt_price_x96: Amount,
+        tick: i32,
+        liquidity: Amount,
+    },
+    Stable {
+        balances_scaled: [Amount; 2],
+    },
+    Weighted {
+        balances_scaled: [Amount; 2],
+    },
 }
 
 /// Dispatch a single-hop quote to the right math given the pool kind.
-pub fn quote_hop(
-    pool: &PoolRef,
-    state: &PoolLiveState,
-    amount_in: Amount,
-) -> Option<HopQuote> {
+pub fn quote_hop(pool: &PoolRef, state: &PoolLiveState, amount_in: Amount) -> Option<HopQuote> {
     match pool.kind {
         PoolKind::V2 => v2::quote(state, amount_in, pool.fee_bps),
         PoolKind::V3 => v3::quote(state, amount_in, pool.fee_bps),

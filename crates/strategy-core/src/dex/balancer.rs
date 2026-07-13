@@ -114,7 +114,7 @@ fn taylor_ln(x_abs_q36: Uint, neg: bool) -> Uint {
     // Instead we reduce: x is naturally small (<= ~0.1), so we cap terms.
     let scale = Uint::from(1_000_000_000_000_000_000u64); // 1e18 in q18; q36 = 1e36
     let one36 = scale * scale; // 1e36
-    // x_norm36 = x_abs_q36 (already q36). terms:
+                               // x_norm36 = x_abs_q36 (already q36). terms:
     let mut acc = x_abs_q36; // term 1: x
     let mut pow_x = x_abs_q36; // x^k at q(36*k) progressively rescaled
     for k in 2u64..=6 {
@@ -140,24 +140,21 @@ fn taylor_ln(x_abs_q36: Uint, neg: bool) -> Uint {
 
 /// exp(y) at Q36 via Taylor. y given at Q36.
 fn taylor_exp(y_q36: Uint) -> Uint {
-    let one36 = Uint::from_limbs([
-        0x5b814d3e, 0xa1ce2c8a, 0x7797c3e9, 0xe35fbf5,
-    ]); // placeholder; recompute as 1e36 below
+    let one36 = Uint::from_limbs([0x5b814d3e, 0xa1ce2c8a, 0x7797c3e9, 0xe35fbf5]); // placeholder; recompute as 1e36 below
     let _ = one36;
     let one36 = {
         // 10^36 as U256: 1e36 = 10^36
         let mut a = Uint::from(1u64);
         for _ in 0..36 {
-            a = a * Uint::from(10u64);
+            a *= Uint::from(10u64);
         }
         a
     };
     let mut acc = one36; // 1
-    let mut term = one36; // y^0 / 0!
     let mut pow_y = one36;
     for k in 1u64..=10 {
         pow_y = (pow_y * y_q36) / one36; // y^k at q36
-        term = pow_y / fact(k);
+        let term = pow_y / fact(k);
         acc = acc.saturating_add(term);
         if term == Uint::ZERO {
             break;
@@ -169,7 +166,7 @@ fn taylor_exp(y_q36: Uint) -> Uint {
 fn fact(k: u64) -> Uint {
     let mut a = Uint::from(1u64);
     for i in 2..=k {
-        a = a * Uint::from(i);
+        a *= Uint::from(i);
     }
     a
 }
@@ -177,8 +174,8 @@ fn fact(k: u64) -> Uint {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::uint_ext::UintExt;
     use crate::types::PoolKind;
+    use crate::uint_ext::UintExt;
 
     #[test]
     fn balancer_equal_weights_equals_v2() {

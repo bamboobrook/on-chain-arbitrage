@@ -74,7 +74,7 @@ fn compute_d(x: Amount, y: Amount, a: u128) -> Option<Amount> {
     }
     let n = Uint::from(2u64);
     let ann = Uint::from(a) * n * n; // A * n^n
-    // Initial guess: D = S.
+                                     // Initial guess: D = S.
     let mut d = s;
     let prod = x * y;
     for _ in 0..256 {
@@ -164,8 +164,8 @@ fn newton_y(x: Amount, d: Amount, a: u128) -> Option<Amount> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::uint_ext::UintExt;
     use crate::types::PoolKind;
+    use crate::uint_ext::UintExt;
 
     #[test]
     fn curve_quote_balanced_is_near_1_to_1() {

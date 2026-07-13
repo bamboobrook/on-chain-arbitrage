@@ -14,12 +14,7 @@ use super::{HopQuote, PoolLiveState, PoolStateAfter};
 use crate::uint_ext::{Amount, Uint};
 
 /// Q96 = 2^96, the fixed-point scale for sqrt price and liquidity in V3.
-pub const Q96: Uint = Uint::from_limbs([
-    0xffffffffffffffff,
-    0xffffffffffffffff,
-    0xffffffff,
-    0x0,
-]);
+pub const Q96: Uint = Uint::from_limbs([0xffffffffffffffff, 0xffffffffffffffff, 0xffffffff, 0x0]);
 
 /// Quote an amount_out for a V3 swap using the local liquidity approximation.
 ///
@@ -70,7 +65,11 @@ pub fn quote(state: &PoolLiveState, amount_in: Amount, fee_bps: u32) -> Option<H
 /// each step at the next tick boundary. For MVP the local approximation above
 /// is enough for ranking; revm validates exactness.
 #[allow(dead_code)]
-pub fn quote_stepped(_state: &PoolLiveState, _amount_in: Amount, _fee_bps: u32) -> Option<HopQuote> {
+pub fn quote_stepped(
+    _state: &PoolLiveState,
+    _amount_in: Amount,
+    _fee_bps: u32,
+) -> Option<HopQuote> {
     // Intentionally unimplemented in MVP; the local approximation is used.
     None
 }
@@ -156,15 +155,15 @@ fn tick_from_sqrt_price(sqrt_price_x96: Amount) -> i32 {
     }
     let sp_bits = sqrt_price_x96.as_limbs()[0] as f64;
     let _ = sp_bits; // only used as a sanity seed
-    // Use a coarse ratio estimate: ratio = sqrt_price_x96 / Q96 (approx via top limb).
+                     // Use a coarse ratio estimate: ratio = sqrt_price_x96 / Q96 (approx via top limb).
     let ratio = (sqrt_price_x96.as_limbs()[0] as f64) / (Q96.as_limbs()[0] as f64).max(1e-300);
     let price = ratio * ratio;
     if price <= 0.0 {
         return 0;
     }
     let log_price = price.ln();
-    let tick = (log_price / (1.0001f64.ln()) / 2.0) as i32;
-    tick
+
+    (log_price / (1.0001f64.ln()) / 2.0) as i32
 }
 
 #[cfg(test)]

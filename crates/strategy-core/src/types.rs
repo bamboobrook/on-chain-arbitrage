@@ -320,9 +320,9 @@ pub struct BalanceDelta {
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct StrategyScore {
     pub net_profit: Amount,
-    pub score: f64,           // 0..1
-    pub confidence: f64,      // 0..1
-    pub capacity_fit: f64,    // 0..1
+    pub score: f64,        // 0..1
+    pub confidence: f64,   // 0..1
+    pub capacity_fit: f64, // 0..1
     pub risk_adjusted_return: f64,
 }
 

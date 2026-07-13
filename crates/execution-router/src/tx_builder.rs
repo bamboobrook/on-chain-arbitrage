@@ -55,23 +55,50 @@ pub fn encode_execute_calldata(plan: &ExecutionPlan) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use strategy_core::types::{Capital, CapitalSource, Hop, PoolKind, PoolRef, Route, Dex};
+    use strategy_core::types::{Capital, CapitalSource, Dex, Hop, PoolKind, PoolRef, Route};
     use strategy_core::uint_ext::UintExt;
 
     #[test]
     fn build_tx_emits_selector_and_payload() {
         let pool = PoolRef {
-            chain_id: 1, address: "0xp".into(), dex: Dex::UniswapV2, kind: PoolKind::V2,
-            token0: "0xA".into(), token1: "0xB".into(), fee_bps: 30, tick_spacing: 0, extra: serde_json::Value::Null,
+            chain_id: 1,
+            address: "0xp".into(),
+            dex: Dex::UniswapV2,
+            kind: PoolKind::V2,
+            token0: "0xA".into(),
+            token1: "0xB".into(),
+            fee_bps: 30,
+            tick_spacing: 0,
+            extra: serde_json::Value::Null,
         };
         let plan = ExecutionPlan {
             opportunity_id: "o1".into(),
             chain_id: 1,
-            route: Route { hops: vec![Hop { pool, token_in: "0xA".into(), token_out: "0xB".into(), zero_for_one: true }] },
-            capital: Capital { source: CapitalSource::VaultCapital, amount: UintExt::ten_pow(6), premium: Uint::ZERO },
-            min_profit_assets: Uint::ZERO, deadline: 0, max_gas_cost: Uint::ZERO,
+            route: Route {
+                hops: vec![Hop {
+                    pool,
+                    token_in: "0xA".into(),
+                    token_out: "0xB".into(),
+                    zero_for_one: true,
+                }],
+            },
+            capital: Capital {
+                source: CapitalSource::VaultCapital,
+                amount: UintExt::ten_pow(6),
+                premium: Uint::ZERO,
+            },
+            min_profit_assets: Uint::ZERO,
+            deadline: 0,
+            max_gas_cost: Uint::ZERO,
         };
-        let tx = build_tx("0xexec".into(), &plan, 500_000, Uint::from(1_000_000_000u64), Uint::from(1_000_000_000u64)).unwrap();
+        let tx = build_tx(
+            "0xexec".into(),
+            &plan,
+            500_000,
+            Uint::from(1_000_000_000u64),
+            Uint::from(1_000_000_000u64),
+        )
+        .unwrap();
         assert_eq!(&tx.data[..4], &[0xde, 0xc8, 0x61, 0x28]);
         assert!(tx.data.len() > 8);
         assert_eq!(tx.to, "0xexec");

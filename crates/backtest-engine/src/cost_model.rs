@@ -10,7 +10,7 @@
 
 use crate::replayer::CostModelParams;
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use strategy_core::uint_ext::{Amount, Uint};
 
@@ -113,11 +113,11 @@ fn shl(x: Amount, pow: u32) -> Amount {
     let mut a = x;
     let mut p = pow;
     while p >= 64 {
-        a = a << 64;
+        a <<= 64;
         p -= 64;
     }
     if p > 0 {
-        a = a << p;
+        a <<= p;
     }
     a
 }
@@ -125,11 +125,11 @@ fn shr(x: Amount, pow: u32) -> Amount {
     let mut a = x;
     let mut p = pow;
     while p >= 64 {
-        a = a >> 64;
+        a >>= 64;
         p -= 64;
     }
     if p > 0 {
-        a = a >> p;
+        a >>= p;
     }
     a
 }
@@ -138,6 +138,7 @@ fn shr(x: Amount, pow: u32) -> Amount {
 mod tests {
     use super::*;
     use crate::replayer::CostModelParams;
+    use rand::SeedableRng;
     use strategy_core::uint_ext::UintExt;
 
     #[test]

@@ -4,9 +4,12 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-# Make toolchains discoverable inside recipe shells.
+# Make toolchains discoverable inside recipe shells. Include the nvm-managed
+# node bin (so corepack/pnpm is on PATH) + foundry + cargo. Resolve the node
+# bin lazily so this works after `make setup` installs node.
 NVM_DIR ?= $(HOME)/.nvm
-export PATH := $(HOME)/.foundry/bin:$(HOME)/.cargo/bin:$(PATH)
+NVM_NODE_BIN := $(wildcard $(NVM_DIR)/versions/node/*/bin)
+export PATH := $(HOME)/.foundry/bin:$(HOME)/.cargo/bin:$(NVM_NODE_BIN):$(PATH)
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -107,9 +110,31 @@ test: ## Run all tests
 	pnpm test
 
 # ----------------------------------------------------------------------------
+# Unified verification (Phase 0 §3 of the audit plan).
+# One command that turns green only when every layer is healthy.
+# ----------------------------------------------------------------------------
+verify: ## Run all checks: TS typecheck, Rust test, Foundry test, JSON validate
+	@echo "===== OAL verify: 7-layer check (must all pass) ====="
+	@echo "----- [1/4] TypeScript typecheck (all packages + apps) -----"
+	@for pkg in packages/config packages/sdk packages/ui packages/strategy-models apps/api apps/workers apps/web; do \
+		echo "  typecheck $$pkg"; \
+		(cd $$pkg && npx tsc --noEmit) || { echo "FAIL: $$pkg typecheck"; exit 1; }; \
+	done
+	@echo "----- [2/4] Rust workspace: fmt + clippy + test -----"
+	@cargo fmt --all -- --check || { echo "FAIL: cargo fmt"; exit 1; }
+	@cargo clippy --workspace --all-targets -- -D warnings || { echo "FAIL: cargo clippy"; exit 1; }
+	@cargo test --workspace || { echo "FAIL: cargo test"; exit 1; }
+	@echo "----- [3/4] Foundry: build + test -----"
+	@cd contracts && forge build || { echo "FAIL: forge build"; exit 1; }
+	@cd contracts && forge test || { echo "FAIL: forge test"; exit 1; }
+	@echo "----- [4/4] JSON artifact schema validate -----"
+	@node scripts/verify-artifacts.mjs || { echo "FAIL: JSON schema validate"; exit 1; }
+	@echo "===== OAL verify: ALL GREEN ====="
+
+# ----------------------------------------------------------------------------
 # Git
 # ----------------------------------------------------------------------------
 .PHONY: help setup db-up db-down db-logs db-migrate db-migrate-down db-seed db-reset \
         cargo-build cargo-test cargo-clippy \
         forge-build forge-test forge-test-fork anvil deploy-local \
-        install build dev-web dev-api dev-workers lint typecheck test
+        install build dev-web dev-api dev-workers lint typecheck test verify

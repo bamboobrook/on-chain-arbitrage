@@ -6,11 +6,11 @@
 //!   given block from an archive RPC via alloy. This is the real backtest
 //!   data path; the driver walks blocks and queries state at each.
 
-use anyhow::{Context, Result};
 use alloy::primitives::{address, Address as AlloyAddress, Bytes};
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
 use alloy::rpc::types::BlockId;
 use alloy::transports::http::{Client as HttpClient, Http};
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strategy_core::dex::PoolLiveState;
@@ -47,7 +47,14 @@ impl StateSource for StaticStateSource {
         self.states
             .get(&(chain_id, pool.clone(), block))
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("no state for chain {} pool {} block {}", chain_id, pool, block))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "no state for chain {} pool {} block {}",
+                    chain_id,
+                    pool,
+                    block
+                )
+            })
     }
 }
 
@@ -90,7 +97,11 @@ impl RpcStateSource {
         // The 3-byte value occupies bytes 61..64 (the low 3 bytes of word 2).
         let tick = ((bytes[61] as i32) << 16) | ((bytes[62] as i32) << 8) | (bytes[63] as i32);
         // sign-extend the 24-bit value (bit 23 is the sign bit)
-        let tick = if tick & 0x800000 != 0 { tick | !0xFF_FFFF } else { tick };
+        let tick = if tick & 0x800000 != 0 {
+            tick | !0xFF_FFFF
+        } else {
+            tick
+        };
 
         // liquidity() selector = 0x1a686502
         let liq_tx = alloy::rpc::types::TransactionRequest::default()
