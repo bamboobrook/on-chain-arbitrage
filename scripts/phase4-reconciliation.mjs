@@ -211,7 +211,7 @@ async function main() {
     rpcSources: ['alchemy-ethereum-mainnet'],
     sampleSize: sample.length,
     reconciled: results.length,
-    passed, failed: fail, skipped,
+    passedCount: pass, failedCount: fail, skipped,
     passRate: pass / Math.max(1, results.length),
     errorThresholdPct: ERROR_THRESHOLD_PCT,
     results: byError, // sorted by error descending
