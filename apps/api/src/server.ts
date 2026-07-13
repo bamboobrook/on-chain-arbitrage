@@ -6,6 +6,7 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { registerRoutes } from './routes.js';
+import { registerHealth } from './health.js';
 import { closeDb } from './db.js';
 
 const host = process.env.API_HOST ?? '0.0.0.0';
@@ -15,9 +16,8 @@ const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
 
 async function main(): Promise<void> {
   await app.register(cors, { origin: true });
+  await registerHealth(app);
   await registerRoutes(app);
-
-  app.get('/health', async () => ({ status: 'ok', ts: Date.now() }));
 
   await app.listen({ host, port });
   app.log.info(`OAL API listening on http://${host}:${port}`);
