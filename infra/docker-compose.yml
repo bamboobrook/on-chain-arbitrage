@@ -57,12 +57,13 @@ services:
     volumes:
       - ./data/clickhouse:/var/lib/clickhouse
       - ./db/init/clickhouse:/docker-entrypoint-initdb.d:ro
+      - ./clickhouse/listen.xml:/etc/clickhouse-server/config.d/listen.xml:ro
     ulimits:
       nofile:
         soft: 262144
         hard: 262144
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8123/ping"]
       interval: 5s
       timeout: 3s
       retries: 10

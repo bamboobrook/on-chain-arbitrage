@@ -1,0 +1,6 @@
+<clickhouse>
+    <!-- Force IPv4-only listen; WSL2 has IPv6 disabled which breaks the
+         default [::] bind (EAI: Address family for hostname not supported). -->
+    <listen_host>0.0.0.0</listen_host>
+    <listen_try>1</listen_try>
+</clickhouse>
