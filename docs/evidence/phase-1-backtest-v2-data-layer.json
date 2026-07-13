@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 2,
+  "phase": "Phase 1 — rebuild credible backtest data layer",
+  "plan": "docs/full-audit-and-glm-execution-plan-20260713.md §2",
+  "generatedAt": "2026-07-13T00:00:00Z",
+  "gitHead": "26b74b1215d9d4307d2873f5bfbce069180d3102",
+  "gitBranch": "phase-0-foundation",
+  "modules": [
+    { "name": "types.ts", "purpose": "schemaVersion=2 canonical types (ChainEvent, CostBreakdownV2, ReplayResult)" },
+    { "name": "provenance.ts", "purpose": "dataHash + envelope + validation + reproducibility check" },
+    { "name": "historicalPrice.ts", "purpose": "Chainlink oracle at-block + Uniswap V3 TWAP cross-check (NEVER prices/current)" },
+    { "name": "exitRoute.ts", "purpose": "Quoter V2 exact quote at event block" },
+    { "name": "costModel.ts", "purpose": "8-component cost breakdown + stress model" },
+    { "name": "competition.ts", "purpose": "capture rate from competitor analysis" },
+    { "name": "walkForward.ts", "purpose": "chronological split + daily NAV + capacity curve + period metrics" }
+  ],
+  "v1FlawsFixed": [
+    "prices/current price leakage → Chainlink oracle at-block",
+    "current gasPrice + fixed 950k gas → receipt effectiveGasPrice + gasUsed",
+    "no exit route quote → Quoter V2 at event block",
+    "no DEX fee/slippage/flash/tip → 8-component CostBreakdownV2",
+    "100% capture assumption → competition model with capture rate",
+    "linear annualization → daily NAV + rolling APY + bootstrap CI",
+    "no train/test split → chronological 70/15/15 or rolling 30d/7d",
+    "min 5 samples → plan §2.1: >= 30 events, bootstrap CI > 0"
+  ],
+  "acceptanceCriteria": {
+    "eventBlockTruth": "pass — ChainEvent requires blockNumber/blockHash/txHash/logIndex/effectiveGasPrice",
+    "noPricesCurrent": "pass — historicalPrice.ts only reads Chainlink/TWAP at block",
+    "costModelComplete": "pass — 8 components + stress variant",
+    "competitionModel": "pass — capture rate from competitor count",
+    "walkForward": "pass — chronological 70/15/15 + rolling option",
+    "dailyNav": "pass — buildDailyNav + computePeriodMetrics (replaces linear APY)",
+    "capacityCurve": "pass — buildCapacityCurve at 6 capital sizes",
+    "schemaVersion2": "pass — ArtifactEnvelope.schemaVersion=2 on all artifacts",
+    "reproducibility": "pass — verifyReproducibility() checks dataHash match",
+    "makeVerifyGreen": "pass"
+  },
+  "caveats": [
+    "20-event reconciliation test (acceptance §2: error < 1%) requires fetching real Aave/Morpho events — that is Phase 2 work (the actual replay run). The data layer infrastructure is complete and type-safe; the 20-event reconciliation is the first Phase 2 task.",
+    "Competition model is naive/speed-weighted; 'historical' calibration model is a stub (needs observed win/loss log from live shadow run)."
+  ],
+  "nextPhase": "Phase 2 — run actual replays on Aave/Morpho/Maker/LLAMMA/Euler/Compound using this V2 data layer"
+}
