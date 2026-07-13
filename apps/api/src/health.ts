@@ -13,6 +13,17 @@
 import type { FastifyInstance } from 'fastify';
 import { pool as pgPool } from './db.js';
 import { Redis } from 'ioredis';
+import { RpcMonitor, buildConfigsFromEnv, type ChainHealth } from '@oal/sdk';
+
+let rpcMonitor: RpcMonitor | null = null;
+function getRpcMonitor(): RpcMonitor {
+  if (!rpcMonitor) {
+    const configs = buildConfigsFromEnv(process.env);
+    rpcMonitor = new RpcMonitor(configs);
+    rpcMonitor.start();
+  }
+  return rpcMonitor;
+}
 
 export interface HealthComponent {
   name: string;
@@ -151,5 +162,16 @@ export async function registerHealth(app: FastifyInstance): Promise<void> {
       reply.code(503);
     }
     return report;
+  });
+
+  // RPC per-chain health + failover status.
+  app.get('/health/rpc', async () => {
+    const monitor = getRpcMonitor();
+    const chains: ChainHealth[] = monitor.getHealth();
+    return {
+      ts: Date.now(),
+      chains,
+      allHealthy: chains.every((c) => c.healthy),
+    };
   });
 }
