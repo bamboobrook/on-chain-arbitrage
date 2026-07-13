@@ -67,6 +67,53 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
           {tx && <div style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 8 }}>{tx}</div>}
         </div>
         <div className="card">
+          <h3>Strategy Management (Phase 5)</h3>
+          <p style={{ color: 'var(--text-dim)', fontSize: 12 }}>
+            Allocate deposited capital to an admitted strategy, start/stop automated execution.
+          </p>
+          <div className="form-row">
+            <label>Strategy<select id="strat-select"><option value="aave-v3-liquidation">Aave V3 Liquidation</option></select></label>
+            <label>Amount (USD)<input id="alloc-amt" defaultValue="1000" /></label>
+            <button onClick={async () => {
+              const s = document.getElementById('strat-select') as HTMLSelectElement;
+              const a = document.getElementById('alloc-amt') as HTMLInputElement;
+              const res = await fetch(`${API_BASE}/api/vaults/${vault.id}/allocate`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ userAddress: '0x0000000000000000000000000000000000000000', strategyId: s.value, amountUsd: parseFloat(a.value) }),
+              });
+              const r = await res.json();
+              setTx(`Allocated: ${r.allocationId} (${r.status})`);
+            }}>Allocate</button>
+          </div>
+          <div className="form-row">
+            <label>Allocation ID<input id="alloc-id" defaultValue="" placeholder="from allocate above" /></label>
+            <button onClick={async () => {
+              const a = document.getElementById('alloc-id') as HTMLInputElement;
+              const res = await fetch(`${API_BASE}/api/vaults/${vault.id}/start`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ allocationId: a.value, userAddress: '0x0000000000000000000000000000000000000000' }),
+              });
+              const r = await res.json();
+              setTx(`Started: runId=${r.runId} (${r.status})`);
+            }}>Start Strategy</button>
+            <button onClick={async () => {
+              const a = document.getElementById('alloc-id') as HTMLInputElement;
+              // Derive runId from allocation (simplified)
+              setTx('Use the runId from Start to stop. Enter runId below.');
+            }}>Stop</button>
+            <label>Run ID<input id="run-id" defaultValue="" placeholder="runId to stop" /></label>
+            <button onClick={async () => {
+              const r = document.getElementById('run-id') as HTMLInputElement;
+              const res = await fetch(`${API_BASE}/api/vaults/${vault.id}/stop`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ runId: r.value }),
+              });
+              const result = await res.json();
+              setTx(`Stopped: ${result.status} PnL=$${result.pnl} executions=${result.executions}`);
+            }}>Confirm Stop</button>
+          </div>
+        </div>
+        <div className="card">
           <h3>Historical P&amp;L</h3>
           {pnl?.length ? (
             <pre style={{ overflowX: 'auto' }}>{JSON.stringify(pnl, null, 2)}</pre>

@@ -1150,6 +1150,71 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     );
   });
 
+  // -- Phase 5: vault allocation + strategy start/stop -----------------------
+  app.post<{ Params: { id: string } }>('/api/vaults/:id/allocate', async (req, reply) => {
+    const body = req.body as { userAddress: string; strategyId: string; amountUsd: number };
+    if (!body?.userAddress || !body?.strategyId || !body?.amountUsd) {
+      return reply.code(400).send({ error: 'missing userAddress, strategyId, or amountUsd' });
+    }
+    const rows = await query(
+      `INSERT INTO user_vault_allocations (user_address, vault_id, strategy_id, chain_id, allocated_usd, status)
+       VALUES (decode($1,'hex'), $2, $3,
+         (SELECT chain_id FROM vaults WHERE id = $2 LIMIT 1),
+         $4, 'pending')
+       RETURNING id, status`,
+      [body.userAddress.replace(/^0x/i, ''), req.params.id, body.strategyId, body.amountUsd],
+    );
+    return { allocationId: rows[0]?.id, status: rows[0]?.status };
+  });
+
+  app.post<{ Params: { id: string } }>('/api/vaults/:id/start', async (req, reply) => {
+    const body = req.body as { allocationId: string; userAddress: string };
+    if (!body?.allocationId) {
+      return reply.code(400).send({ error: 'missing allocationId' });
+    }
+    // Activate the allocation and create a live_strategy_run.
+    const alloc = await query(
+      `UPDATE user_vault_allocations SET status='active', started_at=now(), updated_at=now()
+       WHERE id=$1 RETURNING strategy_id, vault_id, chain_id, allocated_usd`,
+      [body.allocationId],
+    );
+    if (!alloc.length) return reply.code(404).send({ error: 'allocation not found' });
+    const a = alloc[0];
+    const run = await query(
+      `INSERT INTO live_strategy_runs (allocation_id, user_address, strategy_id, vault_id, chain_id, status, capital_usd)
+       VALUES ($1, decode($2,'hex'), $3, $4, $5, 'active', $6)
+       RETURNING id, status`,
+      [body.allocationId, (body.userAddress ?? '').replace(/^0x/i, ''), a.strategy_id, a.vault_id, a.chain_id, a.allocated_usd],
+    );
+    return { runId: run[0]?.id, status: run[0]?.status };
+  });
+
+  app.post<{ Params: { id: string } }>('/api/vaults/:id/stop', async (req, reply) => {
+    const body = req.body as { runId: string };
+    if (!body?.runId) return reply.code(400).send({ error: 'missing runId' });
+    const run = await query(
+      `UPDATE live_strategy_runs SET status='stopped', stopped_at=now()
+       WHERE id=$1 RETURNING id, realized_pnl, execution_count`,
+      [body.runId],
+    );
+    if (!run.length) return reply.code(404).send({ error: 'run not found' });
+    // Also update the allocation.
+    await query(
+      `UPDATE user_vault_allocations SET status='stopped', stopped_at=now(), updated_at=now()
+       WHERE id = (SELECT allocation_id FROM live_strategy_runs WHERE id=$1)`,
+      [body.runId],
+    );
+    return { runId: run[0].id, status: 'stopped', pnl: run[0].realized_pnl, executions: run[0].execution_count };
+  });
+
+  app.get<{ Params: { id: string } }>('/api/vaults/:id/allocations', async (req) => {
+    return query(
+      `SELECT id, strategy_id, allocated_usd, status, started_at, stopped_at, realized_pnl
+       FROM user_vault_allocations WHERE vault_id = $1 ORDER BY created_at DESC`,
+      [req.params.id],
+    );
+  });
+
   // -- live -------------------------------------------------------------------
   app.get('/api/live/opportunity-feed', async (_req, reply) => {
     try {
