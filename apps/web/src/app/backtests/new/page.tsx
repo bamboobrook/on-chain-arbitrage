@@ -23,6 +23,7 @@ export default function NewBacktestPage() {
   const [template, setTemplate] = useState<keyof typeof TEMPLATES>('Balanced');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>();
+  const [candidateId, setCandidateId] = useState('');
 
   const asset = ASSETS.find((a) => a.chainId === chainId && a.symbol === symbol);
 
@@ -41,6 +42,7 @@ export default function NewBacktestPage() {
           endBlock: Number(endBlock),
           capital,
           costModel: TEMPLATES[template],
+          params: candidateId ? { candidateId } : {},
         }),
       });
       router.push(`/backtests/${res.id}`);
@@ -96,6 +98,14 @@ export default function NewBacktestPage() {
             <select value={template} onChange={(e) => setTemplate(e.target.value as never)}>
               {Object.keys(TEMPLATES).map((t) => <option key={t}>{t}</option>)}
             </select>
+          </label>
+          <label>
+            Candidate ID (optional)
+            <input
+              value={candidateId}
+              onChange={(e) => setCandidateId(e.target.value)}
+              placeholder="candidate-1-base-usdc-cbbtc"
+            />
           </label>
         </div>
         <div style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 8 }}>

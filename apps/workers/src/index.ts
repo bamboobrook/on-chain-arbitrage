@@ -18,29 +18,38 @@ import {
 import { startIndexer } from './workers/indexerWorker.js';
 
 async function main(): Promise<void> {
-  console.log('OAL workers starting...');
+  const role = String(process.env.WORKER_ROLE ?? 'all').toLowerCase();
+  const roles = new Set(role.split(',').map((item) => item.trim()).filter(Boolean));
+  const enabled = (name: 'scanner' | 'executor' | 'all') => roles.has('all') || roles.has(name);
+  console.log(`OAL workers starting role=${role}`);
 
-  // BullMQ consumers
-  startOpportunityWorker();
-  startSimulationWorker();
-  startExecutionWorker();
-  startBacktestWorker();
+  if (enabled('scanner')) {
+    // Scanner node: discover opportunities, refresh watchlists, and keep backtest evidence moving.
+    startOpportunityWorker();
+    startBacktestWorker();
+  }
 
-  // Continuous watchers
-  void startRiskWorker();
-  void startAccountingWorker();
+  if (enabled('executor')) {
+    // Executor node: consume simulated opportunities and handle execution/risk/accounting.
+    startSimulationWorker();
+    startExecutionWorker();
+    void startRiskWorker();
+    void startAccountingWorker();
+  }
 
-  // Per-chain indexer (only for chains with an RPC env var set)
-  for (const chain of CHAINS.filter((c) => c.isActive && c.chainId !== 31337)) {
-    const rpc = process.env[chain.rpcEnvVar];
-    if (rpc) {
-      void startIndexer(chain.chainId, rpc);
-    } else {
-      console.log(`[indexer] skipping ${chain.shortName}: ${chain.rpcEnvVar} not set`);
+  if (enabled('scanner')) {
+    // Per-chain indexer (only for chains with an RPC env var set)
+    for (const chain of CHAINS.filter((c) => c.isActive && c.chainId !== 31337)) {
+      const rpc = process.env[chain.rpcEnvVar];
+      if (rpc) {
+        void startIndexer(chain.chainId, rpc);
+      } else {
+        console.log(`[indexer] skipping ${chain.shortName}: ${chain.rpcEnvVar} not set`);
+      }
     }
   }
 
-  console.log('OAL workers ready');
+  console.log(`OAL workers ready role=${role}`);
 }
 
 main().catch((err) => {

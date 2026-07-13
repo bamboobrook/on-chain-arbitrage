@@ -25,6 +25,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
   });
   const [depositAmt, setDepositAmt] = useState('1000000');
   const [tx, setTx] = useState<string>();
+  const [busy, setBusy] = useState(false);
 
   if (!vault) return <div>Loading…</div>;
 
@@ -50,15 +51,18 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
         <div className="card">
           <h3>Deposit / Withdraw</h3>
           <p style={{ color: 'var(--text-dim)', fontSize: 12 }}>
-            Connect a wallet (RainbowKit / wagmi ready) and approve the asset before depositing.
-            On local Anvil use the deployer account.
+            Connect an injected wallet, approve the vault to spend the asset, then deposit into the ERC-4626 vault.
           </p>
           <div className="form-row">
             <label>Amount (base units)<input value={depositAmt} onChange={(e) => setDepositAmt(e.target.value)} /></label>
           </div>
           <div className="form-row">
-            <button onClick={() => setTx('deposit requires a connected wallet (wagmi hook)')}>Deposit</button>
-            <button onClick={() => setTx('withdraw requires a connected wallet')}>Withdraw</button>
+            <button onClick={() => void approveAndDeposit(vault, depositAmt, setTx, setBusy)} disabled={busy}>
+              {busy ? 'Submitting...' : 'Approve + Deposit'}
+            </button>
+            <button onClick={() => setTx('Withdraw builder is next; use the vault redeem/withdraw functions directly for now.')}>
+              Withdraw
+            </button>
           </div>
           {tx && <div style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 8 }}>{tx}</div>}
         </div>
@@ -73,4 +77,85 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
       </div>
     </div>
   );
+}
+
+declare global {
+  interface Window {
+    ethereum?: {
+      request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+      on?(event: string, listener: (...args: unknown[]) => void): void;
+      removeListener?(event: string, listener: (...args: unknown[]) => void): void;
+    };
+  }
+}
+
+async function approveAndDeposit(
+  vault: Vault,
+  amount: string,
+  setTx: (msg: string) => void,
+  setBusy: (busy: boolean) => void,
+) {
+  if (!window.ethereum) {
+    setTx('No injected wallet found.');
+    return;
+  }
+  if (!vault.address || !vault.asset_address) {
+    setTx('Vault address or asset address is missing in the API response.');
+    return;
+  }
+  setBusy(true);
+  try {
+    const accounts = (await window.ethereum.request({ method: 'eth_requestAccounts' })) as string[];
+    const receiver = accounts[0];
+    if (!receiver) throw new Error('wallet returned no account');
+
+    const approveHash = await window.ethereum.request({
+      method: 'eth_sendTransaction',
+      params: [
+        {
+          from: receiver,
+          to: normalizeAddress(vault.asset_address),
+          data: encodeApprove(normalizeAddress(vault.address), amount),
+        },
+      ],
+    });
+    setTx(`Approve submitted: ${String(approveHash)}`);
+
+    const depositHash = await window.ethereum.request({
+      method: 'eth_sendTransaction',
+      params: [
+        {
+          from: receiver,
+          to: normalizeAddress(vault.address),
+          data: encodeDeposit(amount, receiver),
+        },
+      ],
+    });
+    setTx(`Deposit submitted: ${String(depositHash)}. Strategy execution starts when workers allocate this vault.`);
+  } catch (err) {
+    setTx((err as Error).message);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function encodeApprove(spender: string, amount: string): `0x${string}` {
+  return `0x095ea7b3${padAddress(spender)}${padUint(amount)}`;
+}
+
+function encodeDeposit(amount: string, receiver: string): `0x${string}` {
+  return `0x6e553f65${padUint(amount)}${padAddress(receiver)}`;
+}
+
+function normalizeAddress(addr: string): `0x${string}` {
+  if (addr.startsWith('\\x')) return `0x${addr.slice(2)}`;
+  return addr as `0x${string}`;
+}
+
+function padAddress(addr: string): string {
+  return normalizeAddress(addr).slice(2).padStart(64, '0');
+}
+
+function padUint(value: string): string {
+  return BigInt(value).toString(16).padStart(64, '0');
 }
