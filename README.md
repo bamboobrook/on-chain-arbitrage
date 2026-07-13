@@ -44,21 +44,21 @@ See [`docs/architecture.md`](docs/architecture.md) for the full breakdown.
 
 ## Monorepo layout
 
-| Path | Stack | Purpose |
-|------|-------|---------|
-| `crates/strategy-core` | Rust | DEX math (V2/V3/Curve/Balancer), negative-log graph search for cyclic arbitrage |
-| `crates/backtest-engine` | Rust | Block-level replay, revm simulation, cost models, anti-overfit (walk-forward, capacity, cost-stress) |
-| `crates/execution-router` | Rust | Tx construction, nonce/gas management, private-relay multiplexing |
-| `crates/napi` | Rust→Node | napi-rs bridge exposing the cores to TypeScript |
-| `contracts/` | Solidity / Foundry | `ArbVault`, `StrategyController`, `StrategyExecutor`, adapters, `RiskManager`, `Accounting`, timelock |
-| `packages/config` | TS | Chain / asset / DEX-pool metadata |
-| `packages/sdk` | TS | Shared types, API client, contract hooks, Rust-binding wrappers |
-| `packages/ui` | TS | Shared React component library |
-| `packages/strategy-models` | TS | Strategy models A/B/E (+ C/D/F/G placeholders) |
-| `apps/api` | TS / Fastify | REST + SSE gateway |
-| `apps/workers` | TS / BullMQ | 6 worker classes (indexer/opportunity/simulation/execution/risk/accounting) |
-| `apps/web` | TS / Next.js | The product console (10 pages) |
-| `infra/` | Docker / SQL | docker-compose, migrations, seeds, monitoring |
+| Path                       | Stack              | Purpose                                                                                               |
+| -------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
+| `crates/strategy-core`     | Rust               | DEX math (V2/V3/Curve/Balancer), negative-log graph search for cyclic arbitrage                       |
+| `crates/backtest-engine`   | Rust               | Block-level replay, revm simulation, cost models, anti-overfit (walk-forward, capacity, cost-stress)  |
+| `crates/execution-router`  | Rust               | Tx construction, nonce/gas management, private-relay multiplexing                                     |
+| `crates/napi`              | Rust→Node          | napi-rs bridge exposing the cores to TypeScript                                                       |
+| `contracts/`               | Solidity / Foundry | `ArbVault`, `StrategyController`, `StrategyExecutor`, adapters, `RiskManager`, `Accounting`, timelock |
+| `packages/config`          | TS                 | Chain / asset / DEX-pool metadata                                                                     |
+| `packages/sdk`             | TS                 | Shared types, API client, contract hooks, Rust-binding wrappers                                       |
+| `packages/ui`              | TS                 | Shared React component library                                                                        |
+| `packages/strategy-models` | TS                 | Strategy models A/B/E (+ C/D/F/G placeholders)                                                        |
+| `apps/api`                 | TS / Fastify       | REST + SSE gateway                                                                                    |
+| `apps/workers`             | TS / BullMQ        | 6 worker classes (indexer/opportunity/simulation/execution/risk/accounting)                           |
+| `apps/web`                 | TS / Next.js       | The product console (10 pages)                                                                        |
+| `infra/`                   | Docker / SQL       | docker-compose, migrations, seeds, monitoring                                                         |
 
 ## Quick start
 
@@ -116,26 +116,45 @@ Copy `.env.example` to `.env` and fill in your archive RPC endpoints (Base + Arb
 - [Risk policy & kill-switch](docs/risk-policy.md)
 - [Deployment & operations](docs/deployment.md)
 - [API reference](docs/api-reference.md)
+- [Current on-chain strategy system design](docs/on-chain-arbitrage-system-design-20260703.md)
+- [Current runbook](docs/current-runbook-20260703.md)
+- [2026-07-06 search and event replay update](docs/search-and-event-replay-update-20260706.md)
+
+## Research commands
+
+```bash
+npm run search:candidates  # DeFiLlama LP/yield candidates, not pure arbitrage
+npm run search:dex-arb     # Base Uniswap V3 vs Aerodrome pure DEX arbitrage quote replay
+npm run replay:lp-fees     # Base Uniswap V3 WETH/USDC LP fee/IL/gas event replay
+```
+
+Current pure DEX arbitrage scan result: 70 candidates tested across Base and
+Arbitrum (38 two-leg + 32 triangular), 0 passed the 20%+ net-after-gas gate.
+Artifacts are saved at [`data/dex-arbitrage-candidates.json`](data/dex-arbitrage-candidates.json)
+and [`data/dex-arbitrage-candidates-arbitrum.json`](data/dex-arbitrage-candidates-arbitrum.json).
 
 ## Roadmap & completion matrix
 
 This repository is a **pre-audit research/MVP build**. The table reflects honest completion per module.
 
-| Area | Status |
-|------|--------|
-| Monorepo + toolchain | ✅ |
-| Contracts (all 8 modules) + Foundry tests + Anvil demo | ✅ |
-| Rust cores (strategy-core / backtest / execution) | ✅ |
-| DB schema (Postgres/Timescale/ClickHouse) | ✅ |
-| API gateway (REST + SSE) | ✅ |
-| Workers (6 classes) | ✅ |
-| Web console (10 pages) | ✅ |
-| End-to-end backtest / vault / execution flows | ✅ (local Anvil) |
-| Independent security audit | ⏳ future |
-| Real profitability validation (14–30d live) | ⏳ future |
-| Public testnet deployment | ⏳ future (needs your key + funds) |
-| Real MEV-Share orderflow | ⏳ future |
-| Cross-chain inventory (Model F), solver (Model C) | ⏳ phase 2/3 |
+| Area                                              | Status                                                                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Monorepo + toolchain                              | ✅ layout exists; WSL non-login PATH needs explicit `~/.cargo/bin` / `~/.foundry/bin`                                     |
+| Contracts + Foundry tests                         | ✅ 11 tests pass; pre-audit; real vault-to-executor capital routing still needs production hardening                      |
+| Rust cores                                        | ✅ 30 unit tests pass; public AMM search has not found gas-positive 20%+ pure arbitrage                                   |
+| DB schema                                         | ✅ migrations/seeds exist                                                                                                 |
+| API gateway                                       | 🟡 TypeScript checks pass; candidates + backtest enqueue + dry-run execution plans wired; requires Postgres/Redis running |
+| Workers                                           | 🟡 TypeScript checks pass; evidence backtests and one Uniswap V3 LP event replay path wired; MEV / execution remain incomplete |
+| Web console                                       | 🟡 TypeScript checks pass; 20%+ candidates page, dry-run live plans, event replay evidence, and injected-wallet deposit path added |
+| 5 current 20%+ on-chain candidates                | 🟡 generated from DeFiLlama with `npm run search:candidates`; these are LP/yield candidates, not pure arbitrage           |
+| End-to-end wallet → deposit → strategy run        | 🟠 deposit tx builder exists for registered vaults; automated real strategy execution is not complete                     |
+| Independent security audit                        | ⏳ future                                                                                                                 |
+| Real profitability validation (14–30d live)       | 🟡 first Base WETH/USDC LP event replay artifact exists; 7–30d robust replay/live proof still future                      |
+| Public testnet deployment                         | ⏳ future (needs your key + funds)                                                                                        |
+| Real MEV-Share orderflow                          | ⏳ future                                                                                                                 |
+| Cross-chain inventory (Model F), solver (Model C) | ⏳ phase 2/3                                                                                                              |
+
+See [`docs/glm-work-audit-20260703.md`](docs/glm-work-audit-20260703.md) for the evidence-backed audit of what GLM completed and what remains.
 
 ## License
 

@@ -7,11 +7,15 @@ import type { StrategyModel } from './interface.js';
 import { AtomicAmmModel } from './models/atomicAmm.js';
 import { MevBackrunModel } from './models/mevBackrun.js';
 import { PegLstModel } from './models/pegLst.js';
+import { LpMarketMakingModel } from './models/lpMarketMaking.js';
+import { YieldRotatorModel } from './models/yieldRotator.js';
 
 const _models: StrategyModel[] = [
   new AtomicAmmModel(),
   new MevBackrunModel(),
   new PegLstModel(),
+  new LpMarketMakingModel(),
+  new YieldRotatorModel(),
 ];
 
 export const MODELS: Record<string, StrategyModel> = Object.fromEntries(

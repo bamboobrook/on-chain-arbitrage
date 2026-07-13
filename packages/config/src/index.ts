@@ -62,6 +62,16 @@ export interface PoolConfig {
 
 export const CHAINS: ChainConfig[] = [
   {
+    chainId: 1,
+    name: 'Ethereum',
+    shortName: 'ethereum',
+    rpcEnvVar: 'RPC_ETHEREUM_URL',
+    currency: 'ETH',
+    explorerUrl: 'https://etherscan.io',
+    isActive: true,
+    blocksPerYear: 2_629_800,
+  },
+  {
     chainId: 8453,
     name: 'Base',
     shortName: 'base',
@@ -80,6 +90,26 @@ export const CHAINS: ChainConfig[] = [
     explorerUrl: 'https://arbiscan.io',
     isActive: true,
     blocksPerYear: 2_629_800,
+  },
+  {
+    chainId: 10,
+    name: 'Optimism',
+    shortName: 'optimism',
+    rpcEnvVar: 'RPC_OPTIMISM_URL',
+    currency: 'ETH',
+    explorerUrl: 'https://optimistic.etherscan.io',
+    isActive: false,
+    blocksPerYear: 15_768_000,
+  },
+  {
+    chainId: 137,
+    name: 'Polygon',
+    shortName: 'polygon',
+    rpcEnvVar: 'RPC_POLYGON_URL',
+    currency: 'POL',
+    explorerUrl: 'https://polygonscan.com',
+    isActive: false,
+    blocksPerYear: 15_768_000,
   },
   {
     chainId: 31337,
@@ -102,9 +132,14 @@ export const CHAIN_BY_ID: Record<number, ChainConfig> = Object.fromEntries(
 // ---------------------------------------------------------------------------
 
 export const ASSETS: AssetConfig[] = [
+  // Ethereum
+  { chainId: 1, address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', symbol: 'USDC', decimals: 6 },
+  { chainId: 1, address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', symbol: 'WETH', decimals: 18 },
+  { chainId: 1, address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', symbol: 'WBTC', decimals: 8 },
   // Base
   { chainId: 8453, address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', symbol: 'USDC', decimals: 6 },
   { chainId: 8453, address: '0x4200000000000000000000000000000000000006', symbol: 'WETH', decimals: 18 },
+  { chainId: 8453, address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf', symbol: 'cbBTC', decimals: 8 },
   // Arbitrum
   { chainId: 42161, address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', symbol: 'USDC', decimals: 6 },
   { chainId: 42161, address: '0x82aF49447D8a07e3bd95BD0d56f35241523Fbab1', symbol: 'WETH', decimals: 18 },
@@ -205,6 +240,18 @@ export const STRATEGIES: StrategyConfig[] = [
     capitalMode: 'vault-capital',
     supportedChains: [8453, 42161],
     supportedAssets: ['USDC', 'WETH'],
+    phase: 1,
+  },
+  {
+    id: 'lp-market-making',
+    name: 'Concentrated LP Market Making (NOT pure arbitrage)',
+    version: '1.0.0',
+    modelType: 'lp-market-making',
+    riskClass: 'high',
+    status: 'active',
+    capitalMode: 'vault-capital',
+    supportedChains: [8453, 42161, 1],
+    supportedAssets: ['USDC', 'WETH', 'WBTC', 'cbBTC'],
     phase: 1,
   },
   {
