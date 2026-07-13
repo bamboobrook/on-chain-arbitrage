@@ -2,7 +2,7 @@
 
 import { use, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../../providers';
+import { api, API_BASE } from '../../providers';
 import { Disclaimer } from '@oal/ui';
 
 interface Vault {
@@ -96,9 +96,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
               const r = await res.json();
               setTx(`Started: runId=${r.runId} (${r.status})`);
             }}>Start Strategy</button>
-            <button onClick={async () => {
-              const a = document.getElementById('alloc-id') as HTMLInputElement;
-              // Derive runId from allocation (simplified)
+            <button onClick={() => {
               setTx('Use the runId from Start to stop. Enter runId below.');
             }}>Stop</button>
             <label>Run ID<input id="run-id" defaultValue="" placeholder="runId to stop" /></label>
